@@ -1,0 +1,37 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - .:/var/www/html:cached
+      - php_socket:/var/run/php
+
+  nginx:
+    image: nginx:1.24-alpine3.17
+    depends_on:
+      - php
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./public/:/var/www/html/public:ro
+      - php_socket:/var/run/php
+    ports:
+      - '${APP_EXTERNAL_PORT}:80'
+  
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - app_db:/var/lib/postgresql/data
+    ports:
+      - ${DB_EXTERNAL_PORT}:5432
+    restart: always
+
+volumes:
+  app_db: ~
+  php_socket: ~
