@@ -10,6 +10,8 @@ locally:;@:
 create: ## Собрать и запустить проект
 	$(MAKE) up
 	$(EXEC_PHP) php artisan key:generate
+	$(MAKE) db-migrate
+	$(MAKE) db-load
 
 vendor: composer.json composer.lock ## Собрать vendor
 	$(EXEC_PHP) composer install
@@ -31,23 +33,13 @@ start: var ## Запустить проект
 .PHONY: start
 
 # Работа с БД
-
-db: vendor ## Создать основную базу
-	$(EXEC_PHP) bin/console doctrine:database:create --if-not-exists
-	$(EXEC_PHP) bin/console doctrine:migrations:migrate --no-interaction
-.PHONY: db
-
 db-migrate: vendor ## Провести миграции
-	$(EXEC_PHP) bin/console doctrine:migrations:migrate
+	$(EXEC_PHP) php artisan migrate
 .PHONY: db
 
-db-migrate-diff: vendor ## Сгенерить миграци
-	$(EXEC_PHP) bin/console doctrine:migrations:diff --no-interaction
-.PHONY: db
-
-db-integration-test: vendor ## Создать базу integration_test
-	$(EXEC_PHP) bin/console doctrine:database:create --env=test --connection=integration_test --if-not-exists
-.PHONY: db-integration-test
+db-load: vendor ## Загрузить тестовые данные
+	$(EXEC_PHP) php artisan db:seed --class=ProductSeeder
+.PHONY: db 
 
 # Проверки кода
 
@@ -92,19 +84,4 @@ composer-normalize: vendor ## Проверить, что composer.json отно�
 composer-normalize-fix: vendor ## Отнормализовать composer.json (https://github.com/ergebnis/composer-normalize)
 	$(EXEC_PHP) composer normalize --diff
 .PHONY: composer-normalize-fix
-
-# Тесты
-
-test-unit: var vendor ## Запустить unit-тесты PHPUnit (https://phpunit.de)
-	$(EXEC_PHP) bin/console doctrine:database:drop --env=test --force --if-exists
-	$(EXEC_PHP) bin/console lexik:jwt:generate-keypair --skip-if-exists
-	$(EXEC_PHP) bin/console doctrine:database:create --env=test --if-not-exists
-	$(EXEC_PHP) bin/console doctrine:migrations:migrate --no-interaction --env=test
-	$(EXEC_PHP) bin/console doctrine:fixtures:load -n --env=test
-	$(EXEC_PHP) vendor/bin/phpunit --exclude-group=integration --coverage-text --coverage-cobertura=$(or $(CI_PROJECT_DIR),var/coverage)/coverage.cobertura.xml
-.PHONY: test-unit
-
-test-integration: var vendor db-integration-test ## Запустить интеграционные тесты PHPUnit (https://phpunit.de)
-	$(EXEC_PHP) vendor/bin/phpunit --group=integration
-.PHONY: test-integration
 
